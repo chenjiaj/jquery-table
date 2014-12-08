@@ -1,0 +1,22 @@
+#table-area {
+  width: 800px;
+}
+#table-area #table {
+  width: 100%;
+  line-height: 1.5em;
+  border-collapse: collapse;
+}
+#table-area #table th {
+  text-align: left;
+  border-bottom: 2px solid #ccc;
+  padding: 5px 10px;
+}
+#table-area #table td {
+  border-bottom: 1px solid #ccc;
+  padding: 3px 10px;
+}
+#table-area ul li {
+  float: left;
+  list-style: none;
+  padding: 3px 5px;
+}
