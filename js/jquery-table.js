@@ -2,189 +2,261 @@
  * Created with JetBrains PhpStorm.
  * Desc:
  * Author: chenjiajun
- * Date: 14-12-8
- * Time: 上午9:57
+ * Date: 14-12-9
+ * Time: 上午9:14
  */
-(function(){
-    var table = {
+/**
+ * 使用说明：
+ * 1.new 一个Tabel对象，传入一个对象设置属性，table\tableArea是必须传入的，具体见代码
+ *   如：var Jtable = new Table({
         table: $("#table"),
         tableArea: $("#table-area"),
-        loadUrl:'../js/table.json',
-        pageCount:null,
+        showIndex:true,
         pageSize:10,
-        totalSize:null,
-        pageUl:null,
-        currPage:0,
-        res:null,
-        init: function(){
-            this.loadData(this.loadUrl);
-            this.bindEvent();
-        },
-        bindEvent:function(){
+        showIndexContent:'编号'
+    });
+ * 2.加载表格数据，调用loadData函数，如：Jtable.loadData('../js/table.json','table')
+ *   第一个参数是请求地址，第二个参数是返回数据的数组名字，通过res[arr]获得所有的表格数据
+ * 3.如传入的格式和table.json的格式不同需要重新写setTableData函数,如果请求方法或者需要新的加载方法也可以通过以下方法扩展新的加载方法
+ *   或者重写loadData
+ *   如：$.extend(true,Table.prototype,{setTableData:function(){}});
+ * 4.可以通过修改tableStyle()方法修改表格样式，如果不需要支持IE6或不需要使用伪类，可以直接通过css设置
+ * 5.可以通过修改currPageStyle()方法修改当前页面的样式，如果不需要支持IE6或不需要使用伪类，可以直接通过css设置
+ * 6.可以通过修改提供的样式模版table.less修改表格样式，可以直接修改
+ *   页面ul的ID是 page-ul   *   上一页ID是 prev   *   下一页ID是 next  *  当前页码信息的li的class是 page-info 页码class是 page
+ *   切换每页显示的记录上的id 是 pageSelect
+ * */
+var Table = null;
+(function(){
+    Table = function JTable(options){
+        this.option = $.extend(true,{
+            table: null,//传入表格如$("#table")  必传项
+            tableArea: null,//包装表格的div  必传项
+            pageCount:null,//总页数
+            pageSize:10,//每页显示的记录数
+            totalSize:null,//总共的记录数
+            pageUl:null,//分页的UL  $("#page-ul")
+            currPage:0,//当前页
+            res:null,//表格所有的数据
+            showIndex:false,//是否显示序号
+            showIndexContent:'序号',//序号列的标题
+            togglePage:true//切换每页显示的记录数
+        },options);
+
+        this.init();//初始化表格
+    }
+
+    Table.prototype = {
+        init:function(){//初始化表格函数
             var _this = this;
-            $(_this.tableArea).on('click',"#prev",function(){
-                _this.prevPage();
-            });
-            $(_this.tableArea).on('click',"#next",function(){
-                _this.nextPage();
-            });
-            $(_this.tableArea).on('click',".page",function(){
-                _this.skipPage(this);
-            });
+            var option = this.option;
+
+            _this.bindEvent();
+
+            if(option.showIndex){
+                option.table.find("th:eq(0)").before('<th>'+option.showIndexContent+'</th>');
+            }
+
+            if(option.togglePage){
+                _this.createTogglePage();
+            }
         },
-        tableStyle:function(){
-            this.table.find("tr:odd").css({"background":"#ddd"});
-        },
-        loadData: function(url){
+        createTogglePage:function(){//创建切换每页显示的记录数按钮
             var _this = this;
+            var option = this.option;
+
+            var select = $('<select id = "pageSelect">' +
+                '<option value="10">10</option>'+
+                '<option value="20">20</option>'+
+                '<option value="40">40</option>'+
+                '<option value="50">50</option>'+
+                '<option value="100">100</option>'+
+                '</select>');
+
+            option.table.after(select);
+
+            $(document).on('change','#pageSelect',function(){
+                console.log("ss");
+                _this.togglePage($(this));
+            });
+        },
+        togglePage:function(the){//切换每页显示的记录数
+            var _this = this;
+            var option = this.option;
+            option.pageSize = Number(the.val());
+            option.currPage = 0;
+            _this.setPage();
+            _this.setTableData();
+        },
+        loadData: function(url,arr){//加载数据
+            var _this = this;
+            var option = this.option;
             $.post(url,function(res){
-                var res = res.table;
-                _this.res = res;
-                _this.totalSize = res.length;
+                var res = res[arr];
+                option.res = res;
+                option.totalSize = res.length;
                 _this.setTableData();
             });
         },
-        setTableData:function(){
+        setTableData:function(){//设置表格数据
             var _this = this;
-            var res = _this.res;
-            var curr = _this.currPage;
-            _this.table.find("tr:has(td)").remove();
-            for(var i = curr*_this.pageSize; i<res.length && i<_this.pageSize + curr*_this.pageSize ; i++){
+            var option = this.option;
+            var res = option.res;
+            var curr = option.currPage;
+            option.table.find("tr:has(td)").remove();
+            for(var i = curr*option.pageSize; i<res.length && i<option.pageSize + curr*option.pageSize ; i++){
                 var trdata = res[i];
                 var tr = $("<tr></tr>");
                 $(trdata).each(function(index){
-                    if(index == 0){
+                    if(index == 0 && option.showIndex){
                         tr.append('<td>'+(i+1)+'</td>');
                     }
                     tr.append('<td>'+trdata[index]+'</td>');
                 });
-                _this.table.append(tr);
+                option.table.append(tr);
             }
             _this.setPage();
             _this.tableStyle();
         },
-        setPage:function(){
+        bindEvent:function(){//注册触发事件
             var _this = this;
-                _this.pageCount = Math.ceil(_this.totalSize / _this.pageSize);
-            if(!_this.pageUl && _this.pageCount >1){
+            var option = this.option;
+            $(option.tableArea).on('click',"#prev",function(){
+                _this.prevPage();
+            });
+            $(option.tableArea).on('click',"#next",function(){
+                _this.nextPage();
+            });
+            $(option.tableArea).on('click',".page",function(){
+                _this.skipPage(this);
+            });
+        },
+        tableStyle:function(){//设置表格样式
+            var option = this.option;
+            option.table.find("tr:odd").css({"background":"#ddd"});
+        },
+        setPage:function(){//设置分页
+            var _this = this;
+            var option = this.option;
+            option.pageCount = Math.ceil(option.totalSize / option.pageSize);
+            if(!option.pageUl && option.pageCount >1){
                 _this.createPage();
             }
-            if(_this.pageCount >1){
+            if(option.pageCount >1){
                 _this.showPageIndex();
                 _this.currPageStyle();
-                if(_this.currPage == 0){
+                if(option.currPage == 0){
                     $("#prev").hide();
                 }
             }
         },
-        showPageIndex:function(){
-            var _this = this;
-            _this.pageUl.html('<li class="page-info">当前第' + Number(Number(_this.currPage)+1) +'页，共'+_this.pageCount+'页</li>' +
+        showPageIndex:function(){//分页页码显示
+            var option = this.option;
+            option.pageUl.html('<li class="page-info">当前第' + Number(Number(option.currPage)+1) +'页，共'+option.pageCount+'页</li>' +
                 '<li id="prev"><a href="#">上一页</a></li>'+
                 '<li id="next"><a href="#">下一页</a></li>');
-            if(_this.pageCount<8){
-                for(var i = 1 ;i <= _this.pageCount;i++){
+            if(option.pageCount<8){
+                for(var i = 1 ;i <= option.pageCount;i++){
                     var li = $('<li class="page" data-page="'+(i-1)+'"><a href="#">'+i+'</a></li>');
-                    _this.pageUl.find("li:last").before(li);
+                    option.pageUl.find("li:last").before(li);
                 }
             }else{
-                if(_this.currPage < 4){
+                if(option.currPage < 4){
                     for(var i = 1 ;i <= 5;i++){
                         var li = $('<li class="page" data-page="'+(i-1)+'"><a href="#">'+i+'</a></li>');
-                        _this.pageUl.find("li:last").before(li);
+                        option.pageUl.find("li:last").before(li);
                     }
                     var lis = $('<li>...</li>');
-                    _this.pageUl.find("li:last").before(lis);
-                    var lastLi = $('<li class="page" data-page="'+( _this.pageCount-1)+'"><a href="#">'+ _this.pageCount+'</a></li>');
-                    _this.pageUl.find("li:last").before(lastLi);
+                    option.pageUl.find("li:last").before(lis);
+                    var lastLi = $('<li class="page" data-page="'+( option.pageCount-1)+'"><a href="#">'+ option.pageCount+'</a></li>');
+                    option.pageUl.find("li:last").before(lastLi);
 
 
-                }else if(_this.currPage > _this.pageCount - 4){
+                }else if(option.currPage > option.pageCount - 4){
                     var firstLi = $('<li class="page" data-page="0"><a href="#">'+1+'</a></li>');
-                    _this.pageUl.find("li:last").before(firstLi);
+                    option.pageUl.find("li:last").before(firstLi);
 
                     var lis = $('<li>...</li>');
-                    _this.pageUl.find("li:last").before(lis);
+                    option.pageUl.find("li:last").before(lis);
 
-                    for(var i = _this.pageCount -4 ;i <= _this.pageCount;i++){
+                    for(var i = option.pageCount -4 ;i <= option.pageCount;i++){
                         var li = $('<li class="page" data-page="'+(i-1)+'"><a href="#">'+i+'</a></li>');
-                        _this.pageUl.find("li:last").before(li);
+                        option.pageUl.find("li:last").before(li);
                     }
 
                 }else{
                     var firstLi = $('<li class="page" data-page="0"><a href="#">'+1+'</a></li>');
-                    _this.pageUl.find("li:last").before(firstLi);
+                    option.pageUl.find("li:last").before(firstLi);
                     var lis = $('<li>...</li>');
-                    _this.pageUl.find("li:last").before(lis);
-                    for(var i = _this.currPage -1 ;i <= Number(_this.currPage) + 2;i++){
+                    option.pageUl.find("li:last").before(lis);
+                    for(var i = option.currPage -1 ;i <= Number(option.currPage) + 2;i++){
                         var li = $('<li class="page" data-page="'+(i-1)+'"><a href="#">'+i+'</a></li>');
-                        _this.pageUl.find("li:last").before(li);
+                        option.pageUl.find("li:last").before(li);
                     }
                     var lis = $('<li>...</li>');
-                    _this.pageUl.find("li:last").before(lis);
-                    var lastLi = $('<li class="page" data-page="'+( _this.pageCount-1)+'"><a href="#">'+ _this.pageCount+'</a></li>');
-                    _this.pageUl.find("li:last").before(lastLi);
+                    option.pageUl.find("li:last").before(lis);
+                    var lastLi = $('<li class="page" data-page="'+( option.pageCount-1)+'"><a href="#">'+ option.pageCount+'</a></li>');
+                    option.pageUl.find("li:last").before(lastLi);
                 }
 
             }
         },
-        currPageStyle:function(){
-            var _this = this;
+        currPageStyle:function(){//当前页码样式
+            var option = this.option;
             $(".page").each(function(){
                 var the = $(this);
-                if(the.attr("data-page") == _this.currPage){
+                if(the.attr("data-page") == option.currPage){
                     the.css({"background-color":"blue"});
                 }else{
                     the.css({
                         "background-color":"#fff"
                     });
-
                 }
-
             });
-
         },
-        createPage:function(){
-            var _this = this;
+        createPage:function(){//创建页码UL
+            var option = this.option;
             var  ul = $('<ul id="page-ul"></ul>');
-                _this.table.after(ul);
-                _this.pageUl = $("#page-ul");
+            option.table.after(ul);
+            option.pageUl = $("#page-ul");
         },
-        prevPage:function(){
+        prevPage:function(){//上一页
             var _this = this;
-            if(_this.currPage >0){
-                _this.currPage --;
+            var option = this.option;
+            if(option.currPage >0){
+                option.currPage --;
                 _this.setTableData();
-                if(_this.currPage == 0){
+                if(option.currPage == 0){
                     $("#prev").hide();
                 }
             }
             _this.currPageStyle();
         },
-        nextPage:function(){
+        nextPage:function(){//下一页
             var _this = this;
-            if(_this.currPage < _this.pageCount -1){
-                _this.currPage ++;
+            var option = this.option;
+            if(option.currPage < option.pageCount -1){
+                option.currPage ++;
                 _this.setTableData();
-                if(_this.currPage == _this.pageCount -1){
+                if(option.currPage == option.pageCount -1){
                     $("#next").hide();
                 }
             }
             _this.currPageStyle();
         },
-        skipPage:function(the){
+        skipPage:function(the){//点击进入某一页
             var _this = this;
-                _this.currPage = $(the).attr("data-page");
-                _this.setTableData();
-                _this.currPageStyle();
-            if(_this.currPage == 0){
+            var option = this.option;
+            option.currPage = $(the).attr("data-page");
+            _this.setTableData();
+            _this.currPageStyle();
+            if(option.currPage == 0){
                 $("#prev").hide();
             }
-            if(_this.currPage == _this.pageCount -1){
+            if(option.currPage == option.pageCount -1){
                 $("#next").hide();
             }
         }
-
     };
-    table.init();
+
 })();

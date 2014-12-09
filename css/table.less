@@ -1,5 +1,16 @@
+/*样式说明
+ *1.可以通过修改tableStyle()方法修改表格样式，如果不需要支持IE6或不需要使用伪类，可以直接通过css设置
+ *2.可以通过修改currPageStyle()方法修改当前页面的样式，如果不需要支持IE6或不需要使用伪类，可以直接通过css设置
+ *3.可以通过修改提供的样式模版table.less修改表格样式，可以直接修改
+ *4.页面ul的ID是 page-ul   *   上一页ID是 prev   *   下一页ID是 next  *  当前页码信息的li的class是 page-info 页码class是 page
+ *5.切换每页显示的记录上的id 是 pageSelect
+*/
+.clear{
+    clear: both;
+}
 #table-area{
     width: 800px;
+    position: relative;
         #table{
             width: 100%;
             line-height: 1.5em;
@@ -15,10 +26,24 @@
             }
         }//table end
         ul{
+            position: relative;
+            right: 0;
+            bottom: 0;
+            float: right;
             li{
                 float: left;
                 list-style: none;
                 padding: 3px 5px;
+                font-size: 14px;
+                font-family: 'microsoft yahei';
             }
+            .page{
+                border:1px solid #ccc;
+                margin: 0 2px;
+            }
+        }
+        #pageSelect{
+            float: left;
+            margin: 20px 10px;
         }
 }//table-area end
